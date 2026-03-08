@@ -1,0 +1,36 @@
+.login-page {
+  position: relative;
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-bg {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(120deg, rgba(10,25,47,0.85), rgba(4,12,34,0.85)), url('https://source.unsplash.com/1600x900/?stocks,finance');
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.7) saturate(1.1);
+  z-index: 0;
+}
+.login-card {
+  position: relative;
+  z-index: 1;
+  width: 420px;
+  background: rgba(255,255,255,0.95);
+  padding: 28px;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  text-align: center;
+}
+.login-card h2 { margin-bottom: 6px }
+.login-card p { color: #666; margin-bottom: 18px }
+.login-form input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+.login-form .btn { width: 100%; }
