@@ -58,7 +58,6 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [demoDeleted, setDemoDeleted] = useState(false);
-  const [analyticsPortfolioId, setAnalyticsPortfolioId] = useState('');
   const [inrTotals, setInrTotals] = useState({});
   const createGoldSilver = async () => {
     try {
@@ -137,13 +136,6 @@ const Home = () => {
     loadPortfolios();
   }, [user]);
 
-  useEffect(() => {
-    if (!analyticsPortfolioId && portfolios.length > 0) {
-      const preferred = portfolios.find((p) => (p.name || '').toLowerCase().includes('crypto ai'));
-      setAnalyticsPortfolioId(String((preferred || portfolios[0]).id));
-    }
-  }, [portfolios, analyticsPortfolioId]);
-
   if (loading) {
     return <div className="loading">Loading portfolios...</div>;
   }
@@ -152,40 +144,16 @@ const Home = () => {
     <div className="home-container">
       <div className="hero-section">
         <div className="hero-content">
-          <h1>📈 Welcome {user?.email || ''}, to StockStop Dashboard</h1>
-          <p>Analyze your investment portfolio with AI-powered insights</p>
+          <div className="header-branding">
+            <h1>📈 Welcome {user?.email || ''}, to StockStop Dashboard</h1>
+            <p>Analyze your investment portfolio with AI-powered insights</p>
+          </div>
           <button
             className="btn btn-primary btn-large"
             onClick={() => navigate('/create-portfolio')}
           >
             Create New Portfolio
           </button>
-          {portfolios.length > 0 && (
-            <div className="home-analytics-jump">
-              <div className="home-analytics-title">Portfolio Analytics Quick Access</div>
-              <div className="home-analytics-controls">
-                <select
-                  value={analyticsPortfolioId}
-                  onChange={(e) => setAnalyticsPortfolioId(e.target.value)}
-                >
-                  {portfolios.map((p) => (
-                    <option key={p.id} value={String(p.id)}>
-                      {p.name} (ID: {p.id})
-                    </option>
-                  ))}
-                </select>
-                <button
-                  className="btn btn-primary btn-small"
-                  onClick={() => analyticsPortfolioId && navigate(`/portfolio/${analyticsPortfolioId}/analytics`)}
-                >
-                  Open Combined Analytics
-                </button>
-              </div>
-              <div className="home-analytics-note">
-                Crypto AI Portfolio includes BTC/Gold/Silver forecast asset selector.
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

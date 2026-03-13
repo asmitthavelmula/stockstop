@@ -10,7 +10,7 @@ import {
   Legend,
   ReferenceLine
 } from 'recharts';
-import { stockAPI } from '../services/api';
+import { stockAPI, fetchLiveData } from '../services/api';
 import './StockPrediction.css';
 
 const StockPrediction = ({ stocks }) => {
@@ -19,6 +19,7 @@ const StockPrediction = ({ stocks }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [predictionData, setPredictionData] = useState(null);
+  const [liveQuote, setLiveQuote] = useState(null);
 
   const models = [
     { value: 'linear', label: 'Linear Regression' },
@@ -33,10 +34,22 @@ const StockPrediction = ({ stocks }) => {
       return;
     }
 
+    const selectedStock = stocks.find(s => s.id.toString() === selectedStockId.toString());
+    const symbol = selectedStock?.company_symbol || 'AAPL';
+
     try {
       setLoading(true);
       setError('');
-      // Requirements: past_days=180, forecast_days=7, dynamic model selection
+      
+      // 1. Fetch live data for validation first (2026-compatible utility)
+      try {
+        const quote = await fetchLiveData(symbol);
+        setLiveQuote(quote);
+      } catch (liveErr) {
+        console.warn('Live quote fetch failed, continuing with cached backend data...', liveErr);
+      }
+
+      // 2. Perform the actual prediction regression
       const response = await stockAPI.getLiveRegression(selectedStockId, 180, 7, selectedModel);
       
       const { historical_dates, historical_prices, forecast_dates, forecast_prices } = response.data;
@@ -58,7 +71,14 @@ const StockPrediction = ({ stocks }) => {
       setPredictionData(formattedData);
     } catch (err) {
       console.error('Error fetching prediction:', err);
-      setError(err.response?.data?.error || 'Failed to fetch prediction data.');
+      const msg = err.response?.data?.error || err.message;
+      if (msg.includes('Insufficient live data')) {
+        setError('Insufficient market data for this stock to generate a 7-day prediction. Try again later or choose another stock.');
+      } else if (msg.includes('network') || !err.response) {
+        setError('Cannot connect to the analysis server. Please ensure the backend is running on port 8001.');
+      } else {
+        setError(`Failed to fetch prediction: ${msg}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -67,6 +87,17 @@ const StockPrediction = ({ stocks }) => {
   return (
     <div className="stock-prediction-container">
       <h3>Stock Price Prediction (7 Days)</h3>
+      
+      {liveQuote && (
+        <div className="live-quote-bar">
+          <span className="live-symbol">{liveQuote.symbol}</span>
+          <span className="live-price">₹{liveQuote.price.toFixed(2)}</span>
+          <span className={`live-change ${liveQuote.change >= 0 ? 'positive' : 'negative'}`}>
+            {liveQuote.change >= 0 ? '+' : ''}{liveQuote.change.toFixed(2)} ({liveQuote.change_percent})
+          </span>
+          <small className="last-updated">Updated: {liveQuote.last_updated}</small>
+        </div>
+      )}
       
       <div className="prediction-controls">
         <select 

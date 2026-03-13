@@ -1,15 +1,29 @@
 # Disable yfinance caching to avoid "unable to open database file" errors
 # on some systems or in concurrent environments.
-import yfinance as yf
 import os
+import tempfile
 
-# Completely disable yfinance caching by pointing it to a non-existent/in-memory path if possible,
-# or simply setting it to None if the version supports it.
+# Set cache dir BEFORE importing yfinance
+# Use a location that is guaranteed to be writable and not concurrent
+cache_dir = os.path.join(tempfile.gettempdir(), f'yf_cache_{os.getpid()}')
+os.environ['YF_CACHE_DIR'] = cache_dir
+if not os.path.exists(cache_dir):
+    try:
+        os.makedirs(cache_dir)
+    except:
+        pass
+
+import yfinance as yf
+
+# Completely disable yfinance caching if possible
 try:
     import yfinance.cache as yfc
-    yfc.set_cache_dir(None)
-except (ImportError, AttributeError):
+    # Use a temporary directory for cache instead of None to avoid path errors
+    yfc.set_cache_location(cache_dir)
+    yfc.set_tz_cache_location(cache_dir)
+except (ImportError, AttributeError, Exception):
     pass
+
 import pandas as pd
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -56,20 +70,31 @@ class StockService:
 
     @staticmethod
     def update_company_price(symbol):
-        """Update current price for a company"""
+        """Update current price for a company with fresh data"""
         try:
+            # Force fresh ticker object
             ticker = yf.Ticker(symbol)
-            data = ticker.history(period='1d')
-            if len(data) > 0:
+            # Use fast_info or latest 1m data for truly live feel
+            data = ticker.history(period='1d', interval='1m')
+            
+            current_price = None
+            if not data.empty:
                 current_price = Decimal(str(data['Close'].iloc[-1]))
-                # info = ticker.info # Avoid ticker.info as it causes issues
-                
+            else:
+                # Fallback to 1d Close if 1m is unavailable (market closed)
+                data_day = ticker.history(period='1d')
+                if not data_day.empty:
+                    current_price = Decimal(str(data_day['Close'].iloc[-1]))
+
+            if current_price:
                 try:
                     company, created = Company.objects.get_or_create(symbol=symbol)
                     company.current_price = current_price
-                    # company.pe_ratio = info.get('trailingPE', None)
-                    # company.dividend_yield = info.get('dividendYield', None)
-                    # company.market_cap = info.get('marketCap', None)
+                    # Also try to refresh basic metadata if it was missing
+                    if created or not company.name:
+                        info = ticker.info
+                        company.name = info.get('longName', symbol)
+                        company.sector = info.get('sector', '')
                     company.save()
                     return company
                 except Exception as db_err:

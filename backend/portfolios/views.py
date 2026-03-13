@@ -898,7 +898,44 @@ class CompanyViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
-    
+
+    @action(detail=False, methods=['get'])
+    def live_price(self, request):
+        """Fetch live price for any ticker using yfinance"""
+        symbol = request.query_params.get('symbol')
+        if not symbol:
+            return Response({'error': 'Symbol is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            ticker = yf.Ticker(symbol)
+            # Try history for latest close
+            data = ticker.history(period='1d')
+            if data.empty:
+                # Try period='5d' just in case today is a holiday
+                data = ticker.history(period='5d')
+            
+            if data.empty:
+                return Response({'error': f'No data found for {symbol}'}, status=status.HTTP_404_NOT_FOUND)
+            
+            last_close = float(data['Close'].iloc[-1])
+            prev_close = float(data['Open'].iloc[-1]) # Rough estimate of change if 1d
+            if len(data) > 1:
+                prev_close = float(data['Close'].iloc[-2])
+            
+            change = last_close - prev_close
+            change_percent = (change / prev_close) * 100 if prev_close != 0 else 0
+            
+            return Response({
+                'symbol': symbol,
+                'price': last_close,
+                'change': change,
+                'change_percent': f"{change_percent:.2f}%",
+                'last_updated': data.index[-1].strftime('%Y-%m-%d')
+            })
+        except Exception as e:
+            logger.error(f"Error fetching live price for {symbol}: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(detail=False, methods=['get'])
     def search(self, request):
         """Search for company by symbol"""

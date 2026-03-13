@@ -25,13 +25,20 @@ export default function StockAnalysis() {
         }
         setAnalysis(res.data)
       } catch (e) {
+        console.error('✗ Primary analysis fetch failed:', e.message);
         try {
+          // If first attempt fails, trigger a fresh live analysis
           await stockAPI.analyze(id, 365)
           const res2 = await stockAPI.getLatestAnalysis(id)
           setAnalysis(res2.data)
         } catch (err2) {
-          console.error('✗ Failed to fetch analysis:', e.message, e.response?.data)
-          setError('Please analyze this stock before viewing results.')
+          console.error('✗ Secondary analysis attempt failed:', err2.message);
+          const msg = err2.response?.data?.error || err2.message;
+          if (msg.includes('unable to open database file') || msg.includes('Insufficient live data')) {
+            setError('Data fetching error: Yahoo Finance is currently throttled or unavailable. Please wait 1 minute and refresh.');
+          } else {
+            setError(`Analysis Failed: ${msg}`);
+          }
           setAnalysis(null)
         }
       }

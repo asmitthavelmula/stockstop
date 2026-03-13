@@ -13,6 +13,63 @@ const api = axios.create({
   },
 });
 
+// Live Data Fetching Utility (2026-Compatible)
+export const fetchLiveData = async (symbol) => {
+  // Reliable domestic-aware fetching via our own backend (which uses yfinance/scraper)
+  // Fallback to Alpha Vantage if backend fails.
+  try {
+    console.log(`Attempting to fetch live data for: ${symbol} via backend...`);
+    const response = await api.get(`/companies/live_price/?symbol=${symbol}`);
+    
+    if (response.data && response.data.price) {
+      console.log(`✓ Live data fetched for ${symbol} via backend:`, response.data);
+      return response.data;
+    }
+  } catch (backendErr) {
+    console.warn(`Backend live fetch failed for ${symbol}, trying Alpha Vantage fallback...`, backendErr.message);
+  }
+
+  // Alpha Vantage Fallback
+  const API_KEY = process.env.REACT_APP_ALPHA_VANTAGE_KEY || 'demo';
+  const PROXY_URL = 'https://cors-anywhere.herokuapp.com/'; 
+  const BASE_URL = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${API_KEY}`;
+
+  try {
+    let response = await axios.get(BASE_URL);
+
+    if (!response || response.status !== 200 || !response.data['Global Quote']) {
+      console.warn('Direct Alpha Vantage fetch failed. Attempting via proxy...');
+      response = await axios.get(`${PROXY_URL}${BASE_URL}`);
+    }
+
+    if (response.status !== 200) {
+      throw new Error(`API Error: ${response.status}`);
+    }
+
+    const data = response.data;
+    const quote = data['Global Quote'];
+
+    if (!quote || quote['05. price'] === undefined || quote['09. change'] === undefined) {
+      throw new Error('Data Validation Failed: Missing price/change fields.');
+    }
+
+    const result = {
+      symbol: quote['01. symbol'],
+      price: parseFloat(quote['05. price']),
+      change: parseFloat(quote['09. change']),
+      change_percent: quote['10. change percent'],
+      last_updated: quote['07. latest trading day'],
+    };
+
+    console.log(`✓ Live data fetched for ${symbol} via Alpha Vantage:`, result);
+    return result;
+
+  } catch (err) {
+    console.error(`✗ Error in fetchLiveData for ${symbol}:`, err.message);
+    throw err;
+  }
+};
+
 // Portfolio APIs
 export const portfolioAPI = {
   // Get all portfolios
@@ -78,6 +135,9 @@ export const portfolioAPI = {
   // Get PCA + KMeans scatter plot as base64 PNG
   getPCAKMeansPlot: (id, k = 3) => api.get(`/portfolios/${id}/pca-kmeans-plot/?k=${k}`),
   
+  // Run PCA-based clustering with specific features
+  runPCAClustering: (id, features, k = 3) => api.post(`/portfolios/${id}/run_pca_clustering/`, { features, k }),
+  
   // Get linear regression analysis for stock price trends
   getRegressionAnalysis: (id, pastDays = 365, forecastDays = 30) => api.get(`/portfolios/${id}/regression_analysis/?past_days=${pastDays}&forecast_days=${forecastDays}`),
   
@@ -93,6 +153,9 @@ export const portfolioAPI = {
 
   // Get total portfolio growth data (aggregate across all portfolios)
   getTotalGrowthData: (days = 30) => api.get(`/portfolios/portfolio-growth/?days=${days}`),
+  
+  // Get gold/silver correlation analysis
+  getGoldSilverAnalysis: () => api.get('/gold_silver/analysis/'),
 };
 
 // Stock APIs

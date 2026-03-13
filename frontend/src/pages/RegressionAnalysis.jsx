@@ -26,6 +26,7 @@ const RegressionAnalysis = () => {
   const [selectedStock, setSelectedStock] = useState(null);
   const [pastDays, setPastDays] = useState(365);
   const [forecastDays, setForecastDays] = useState(30);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     loadRegressionData();
@@ -34,8 +35,9 @@ const RegressionAnalysis = () => {
   const loadRegressionData = async () => {
     try {
       setLoading(true);
+      setSyncing(true);
       const [portfolioRes, regressionRes] = await Promise.all([
-        portfolioAPI.getById(id),
+        portfolioAPI.getById(id, { params: { refresh_prices: 'true' } }),
         portfolioAPI.getRegressionAnalysis(id, pastDays, forecastDays),
       ]);
       setPortfolio(portfolioRes.data);
@@ -54,10 +56,10 @@ const RegressionAnalysis = () => {
 
   const getCombinedChartData = (stock) => {
     if (!stock) return [];
-    
+
     const historical = stock.historical_data || [];
     const future = stock.future_predictions || [];
-    
+
     // Combine historical and future data
     return [
       ...historical.map(h => ({
@@ -136,7 +138,10 @@ const RegressionAnalysis = () => {
         <button className="btn btn-secondary" onClick={() => navigate(`/portfolio/${id}`)}>
           ← Back to Portfolio
         </button>
-        <h1>📈 Linear Regression Analysis: {portfolio?.name}</h1>
+        <div className="title-row">
+          <h1>📈 Linear Regression Analysis: {portfolio?.name}</h1>
+          {syncing && <span className="sync-badge">Live Syncing...</span>}
+        </div>
         <p className="subtitle">Stock Price Trends & Predictions</p>
       </div>
 

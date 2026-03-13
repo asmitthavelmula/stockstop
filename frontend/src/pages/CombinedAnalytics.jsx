@@ -23,6 +23,7 @@ export default function CombinedAnalytics() {
   const [assetForecastLoading, setAssetForecastLoading] = useState(false);
   const [assetForecastError, setAssetForecastError] = useState('');
   const [assetForecastDays, setAssetForecastDays] = useState(30);
+  const [syncing, setSyncing] = useState(false);
 
   const isCryptoAIPortfolio = (portfolio?.name || '').toLowerCase().includes('crypto ai');
 
@@ -30,8 +31,9 @@ export default function CombinedAnalytics() {
     (async () => {
       try {
         setLoading(true);
+        setSyncing(true);
         const [portfolioRes, pcaRes, regRes, liveRes] = await Promise.all([
-          portfolioAPI.getById(id),
+          portfolioAPI.getById(id, { params: { refresh_prices: 'true' } }),
           portfolioAPI.getPCAAnalysis(id),
           portfolioAPI.getRegressionAnalysis(id, pastDays, 30),
           portfolioAPI.analyzeAllLive(id, 365),
@@ -47,12 +49,13 @@ export default function CombinedAnalytics() {
           ]);
           setGoldLive(g.data);
           setSilverLive(s.data);
-        } catch {}
+        } catch { }
         setError('');
       } catch (e) {
         setError('Error loading analytics');
       } finally {
         setLoading(false);
+        setSyncing(false);
       }
     })();
   }, [id, pastDays]);
@@ -149,17 +152,17 @@ export default function CombinedAnalytics() {
   const rollingCorr = buildRollingCorrelation(returnPairs, rollWindow);
   const assetForecastChartData = assetForecast
     ? [
-        ...(assetForecast.historical_data || []).map((d) => ({
-          date: d.date,
-          historical_price: d.actual_price,
-          forecast_price: null,
-        })),
-        ...(assetForecast.future_predictions || []).map((d) => ({
-          date: d.date,
-          historical_price: null,
-          forecast_price: d.forecast_price,
-        })),
-      ]
+      ...(assetForecast.historical_data || []).map((d) => ({
+        date: d.date,
+        historical_price: d.actual_price,
+        forecast_price: null,
+      })),
+      ...(assetForecast.future_predictions || []).map((d) => ({
+        date: d.date,
+        historical_price: null,
+        forecast_price: d.forecast_price,
+      })),
+    ]
     : [];
   const assetTitle = asset === 'BTC-USD' ? 'Bitcoin Predictive Trajectory' : `${asset} Predictive Trajectory`;
 
@@ -167,7 +170,10 @@ export default function CombinedAnalytics() {
     <div className="combined-analytics">
       <div className="section-header">
         <button className="btn btn-secondary" onClick={() => navigate(`/portfolio/${id}`)}>← Back</button>
-        <h1>Portfolio Analytics</h1>
+        <div className="title-row">
+          <h1>Portfolio Analytics</h1>
+          {syncing && <span className="sync-badge">Live Syncing...</span>}
+        </div>
       </div>
       <div className="controls">
         <div className="control">

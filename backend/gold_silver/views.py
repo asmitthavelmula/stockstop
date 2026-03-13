@@ -63,9 +63,36 @@ def analysis(request):
                 'silver_return': float(((s_prices[i] - s_base) / s_base) * 100)
             })
 
+        # Fetch absolute current spot price
+        gold_spot = 0
+        silver_spot = 0
+        try:
+            g_ticker = yf.Ticker(GOLD_TICKER)
+            s_ticker = yf.Ticker(SILVER_TICKER)
+            
+            # Use fast_info if available, or last close from 1m history
+            g_live = g_ticker.history(period='1d', interval='1m')
+            s_live = s_ticker.history(period='1d', interval='1m')
+            
+            if not g_live.empty:
+                gold_spot = float(g_live['Close'].iloc[-1]) * GOLD_MULTIPLIER
+            else:
+                gold_spot = float(g_prices[-1])
+                
+            if not s_live.empty:
+                silver_spot = float(s_live['Close'].iloc[-1]) * SILVER_MULTIPLIER
+            else:
+                silver_spot = float(s_prices[-1])
+        except Exception as e:
+            logger.error(f"Error fetching spot prices: {str(e)}")
+            gold_spot = float(g_prices[-1])
+            silver_spot = float(s_prices[-1])
+
         return Response({
             'gold_ticker': GOLD_TICKER,
             'silver_ticker': SILVER_TICKER,
+            'gold_spot_price': gold_spot,
+            'silver_spot_price': silver_spot,
             'correlation': r,
             'regression': {
                 'slope': slope_gs,

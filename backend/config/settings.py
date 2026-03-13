@@ -6,6 +6,15 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Fix yfinance cache issue
+import tempfile
+os.environ['YF_CACHE_DIR'] = os.path.join(tempfile.gettempdir(), 'yfinance_cache')
+if not os.path.exists(os.environ['YF_CACHE_DIR']):
+    try:
+        os.makedirs(os.environ['YF_CACHE_DIR'])
+    except:
+        pass
+
 SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
 
 DEBUG = os.getenv('DEBUG', 'True') == 'True'

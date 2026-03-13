@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { portfolioAPI } from '../services/api';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import './Clustering.css';
 
-const API_BASE_URL = 'http://localhost:8000/api';
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#a28fd0'];
 
 export default function Clustering() {
@@ -43,10 +42,8 @@ export default function Clustering() {
     setSuccessMsg('');
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/portfolios/${id}/run_pca_clustering/`, {
-        features: selectedFeatures,
-        k: k
-      });
+      // Need to add this method to api.js if it doesn't exist
+      const response = await portfolioAPI.runPCAClustering(id, selectedFeatures, k);
 
       const resData = response.data;
       setClusterData(resData.points);
@@ -54,7 +51,12 @@ export default function Clustering() {
       setSuccessMsg(`Successfully clustered ${resData.total_stocks} stocks into ${resData.k} clusters`);
     } catch (err) {
       console.error('Error running clustering:', err);
-      setError(err.response?.data?.error || 'Failed to run clustering engine.');
+      const msg = err.response?.data?.error || err.message;
+      if (msg.includes('network') || !err.response) {
+        setError('Cannot reach analysis server. Check backend.');
+      } else {
+        setError(`Engine Failure: ${msg}`);
+      }
     } finally {
       setLoading(false);
     }

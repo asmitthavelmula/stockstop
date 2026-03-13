@@ -1,3 +1,9 @@
+import os
+import django
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+django.setup()
+
 from portfolios.models import Portfolio, Company, Stock
 from portfolios.services.stock_service import StockService
 from portfolios.services.analysis_service import AnalysisService
