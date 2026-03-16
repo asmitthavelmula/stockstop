@@ -145,7 +145,7 @@ const Home = () => {
       <div className="hero-section">
         <div className="hero-content">
           <div className="header-branding">
-            <h1>📈 Welcome {user?.email || ''}, to StockStop Dashboard</h1>
+📈 Welcome to StockStop Dashboard
             <p>Analyze your investment portfolio with AI-powered insights</p>
           </div>
           <button
