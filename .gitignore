@@ -23,9 +23,8 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
-db.sqlite3
 *.log
-.env
+
 
 # Django
 local_settings.py
